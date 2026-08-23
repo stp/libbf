@@ -27,7 +27,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#if defined(__SIZEOF_INT128__) && (INTPTR_MAX >= INT64_MAX)
+/* [STP] The && !defined(_WIN32) keeps every Windows compiler on the
+   32-bit limb path: clang-cl defines __SIZEOF_INT128__ but has no 128-bit
+   division runtime (__udivti3) when targeting MSVC, see
+   https://github.com/bellard/quickjs/issues/14. cl.exe never defines it
+   and lands there anyway. One of STP's own changes, which are what
+   this repository's stp branch adds to the verbatim upstream on master. */
+#if defined(__SIZEOF_INT128__) && (INTPTR_MAX >= INT64_MAX) && !defined(_WIN32)
 #define LIMB_LOG2_BITS 6
 #else
 #define LIMB_LOG2_BITS 5
