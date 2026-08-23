@@ -310,7 +310,10 @@ int bf_set(bf_t *r, const bf_t *a)
     }
     r->sign = a->sign;
     r->expn = a->expn;
-    memcpy(r->tab, a->tab, a->len * sizeof(limb_t));
+    /* [STP] len 0 leaves tab NULL on both sides, and memcpy's pointers are
+       declared non-null, so sanitizer builds abort on the empty copy. */
+    if (a->len != 0)
+        memcpy(r->tab, a->tab, a->len * sizeof(limb_t));
     return 0;
 }
 
