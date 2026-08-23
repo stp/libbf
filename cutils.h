@@ -26,11 +26,26 @@
 
 #include <inttypes.h>
 
+/* [STP] MSVC compatibility: cl.exe has neither the GNU builtins nor
+   __attribute__. clang-cl defines _MSC_VER too but supports both, so it
+   keeps the upstream branch. One of STP's own changes, which are what
+   this repository's stp branch adds to the verbatim upstream on master. */
+#if defined(_MSC_VER) && !defined(__clang__)
+#include <intrin.h>
+#define likely(x)       (x)
+#define unlikely(x)     (x)
+#define force_inline __forceinline
+#define no_inline __declspec(noinline)
+#define __maybe_unused
+#define CUTILS_FORMAT_PRINTF(a, b)
+#else
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 #define force_inline inline __attribute__((always_inline))
 #define no_inline __attribute__((noinline))
 #define __maybe_unused __attribute__((unused))
+#define CUTILS_FORMAT_PRINTF(a, b) __attribute__((format(printf, a, b)))
+#endif
 
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
@@ -84,6 +99,68 @@ static inline int clamp_int(int val, int min_val, int max_val)
         return val;
 }
 
+#if defined(_MSC_VER) && !defined(__clang__)
+
+/* [STP] The _BitScan* mapping of the GNU bit-scan builtins; 31 ^ idx is
+   31 - idx for idx in [0, 31]. The a = 0 precondition below makes the
+   "scanned nothing" return value unreachable. */
+
+/* WARNING: undefined if a = 0 */
+static inline int clz32(unsigned int a)
+{
+    unsigned long idx;
+    _BitScanReverse(&idx, a);
+    return 31 ^ (int)idx;
+}
+
+/* WARNING: undefined if a = 0 */
+static inline int clz64(uint64_t a)
+{
+#if defined(_M_X64) || defined(_M_ARM64)
+    unsigned long idx;
+    _BitScanReverse64(&idx, a);
+    return 63 ^ (int)idx;
+#else
+    if (a >> 32)
+        return clz32((unsigned int)(a >> 32));
+    return 32 + clz32((unsigned int)a);
+#endif
+}
+
+/* WARNING: undefined if a = 0 */
+static inline int ctz32(unsigned int a)
+{
+    unsigned long idx;
+    _BitScanForward(&idx, a);
+    return (int)idx;
+}
+
+/* WARNING: undefined if a = 0 */
+static inline int ctz64(uint64_t a)
+{
+#if defined(_M_X64) || defined(_M_ARM64)
+    unsigned long idx;
+    _BitScanForward64(&idx, a);
+    return (int)idx;
+#else
+    if ((unsigned int)a)
+        return ctz32((unsigned int)a);
+    return 32 + ctz32((unsigned int)(a >> 32));
+#endif
+}
+
+#pragma pack(push, 1)
+struct packed_u32 {
+    uint32_t v;
+};
+
+struct packed_u16 {
+    uint16_t v;
+};
+#pragma pack(pop)
+
+#else
+
 /* WARNING: undefined if a = 0 */
 static inline int clz32(unsigned int a)
 {
@@ -115,6 +192,8 @@ struct __attribute__((packed)) packed_u32 {
 struct __attribute__((packed)) packed_u16 {
     uint16_t v;
 };
+
+#endif
 
 static inline uint32_t get_u32(const uint8_t *tab)
 {
@@ -162,8 +241,8 @@ static inline int dbuf_put_u16(DynBuf *s, uint16_t val)
 {
     return dbuf_put(s, (uint8_t *)&val, 2);
 }
-int __attribute__((format(printf, 2, 3))) dbuf_printf(DynBuf *s,
-                                                      const char *fmt, ...);
+int CUTILS_FORMAT_PRINTF(2, 3) dbuf_printf(DynBuf *s,
+                                           const char *fmt, ...);
 void dbuf_free(DynBuf *s);
 static inline BOOL dbuf_error(DynBuf *s) {
     return s->error;
