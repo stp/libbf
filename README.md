@@ -9,23 +9,25 @@ them. `master` mirrors the releases verbatim, one commit per release,
 tagged `upstream-<date>`; the tarball's own hash is recorded in the commit
 message. The `stp` branch is `master` plus STP's changes, one commit each,
 and is what STP builds against: [stp/stp](https://github.com/stp/stp)
-carries this repository as the submodule `lib/extlib-libbf`, pinned to a
-commit of that branch.
+fetches a commit of that branch as an ExternalProject, pinned in its
+`cmake/FindLibBF.cmake`, and builds it with the `CMakeLists.txt` here.
 
-STP compiles `libbf.c` and `cutils.c` and nothing else; the tests,
+That build compiles `libbf.c` and `cutils.c` and nothing else; the tests,
 benchmarks, softfp templates and pi/calculator programs are here because
 the mirror is verbatim, not because they are used.
 
 ## Branches
 
 * `master` — upstream, verbatim. No STP changes here.
-* `stp` — what STP builds. Currently `master` plus MSVC portability and a
-  fix for an empty `memcpy` between null pointers.
+* `stp` — what STP builds. Currently `master` plus MSVC portability, a
+  fix for an empty `memcpy` between null pointers, and a CMake build of the
+  library.
 
 ## Updating to a new release
 
 Extract the new tarball over `master` and commit it as `Import LibBF
-<date>`, tag it, then rebase `stp` onto it and move STP's submodule pin.
+<date>`, tag it, then rebase `stp` onto it and move STP's pin in
+`cmake/FindLibBF.cmake`.
 A conflict during that rebase means an STP change has met upstream and
 needs a decision, which is the point of keeping the two apart.
 
